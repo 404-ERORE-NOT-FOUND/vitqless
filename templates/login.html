@@ -6,11 +6,12 @@
     <title>VIT Q-Less Login</title>
     
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="login-container">
         <h1 class="login-title">Join VIT Q-Less</h1>
-        <p class="login-subtitle">Please sign in with your <strong>@vitstudent.ac.in</strong> account.</p>
+        <p class="login-subtitle">Please sign in with your official <strong>@vitstudent.ac.in</strong> account.</p>
 
         <div id="g_id_onload"
              data-client_id="{{ GOOGLE_CLIENT_ID }}"
@@ -27,7 +28,7 @@
              data-logo_alignment="left">
         </div>
 
-        <div id="status-message" style="margin-top: 1rem; text-align: center;"></div>
+        <div id="status-message" class="status-message"></div>
     </div>
 
     <script>
