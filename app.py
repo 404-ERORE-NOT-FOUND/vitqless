@@ -103,6 +103,21 @@ def admin_create_queue():
     
     return render_template('admin_create_queue.html')
 
+@app.route('/admin/queues/<queue_id>')
+def admin_queue_detail(queue_id):
+    if not session.get('is_admin'):
+        return "Access Denied", 403
+
+    queue_doc_ref = db.collection('queues').document(queue_id)
+    queue_doc = queue_doc_ref.get()
+
+    if not queue_doc.exists:
+        return "Queue not found", 404
+    
+    queue_data = queue_doc.to_dict()
+    
+    return render_template('admin_queue_detail.html', queue=queue_data, queue_id=queue_id)
+
 @app.route('/queue/<queue_id>')
 def queue(queue_id):
     if 'user_email' not in session:
