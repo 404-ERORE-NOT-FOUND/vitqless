@@ -103,25 +103,72 @@ def admin_create_queue():
     
     return render_template('admin_create_queue.html')
 
-@app.route('/admin/queues/<queue_id>')
-def admin_queue_detail(queue_id):
-    if not session.get('is_admin'):
-        return "Access Denied", 403
+@app.route('/queue/<queue_id>')
+def queue(queue_id):
+    if 'user_email' not in session:
+        return redirect(url_for('login'))
 
-    queue_doc_ref = db.collection('queues').document(queue_id)
-    queue_doc = queue_doc_ref.get()
-
+    queue_ref = db.collection('queues').document(queue_id)
+    queue_doc = queue_ref.get()
+    
     if not queue_doc.exists:
         return "Queue not found", 404
     
     queue_data = queue_doc.to_dict()
     
-    return render_template('admin_queue_detail.html', queue=queue_data, queue_id=queue_id)
+    user_token = None
+    user_in_queue = False
+    
+    if 'users' in queue_data and queue_data['users']:
+        for user_in_queue_data in queue_data['users']:
+            if user_in_queue_data['uid'] == session['user_uid']:
+                user_token = user_in_queue_data['token']
+                user_in_queue = True
+                break
 
+    return render_template(
+        'queue.html',
+        queue_name=queue_data.get('name'),
+        queue_id=queue_id,
+        current_token=queue_data.get('current_token'),
+        user_token=user_token,
+        user_in_queue=user_in_queue
+    )
+    
+@app.route('/api/queues/leave/<queue_id>', methods=['POST'])
+def leave_queue(queue_id):
+    if 'user_uid' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    queue_ref = db.collection('queues').document(queue_id)
+    user_uid = session['user_uid']
+    
+    @firestore.transactional
+    def leave_in_transaction(transaction, queue_ref, user_uid):
+        queue_doc = queue_ref.get(transaction=transaction)
+        if not queue_doc.exists:
+            return {'error': 'Queue not found'}, 404
+            
+        queue_data = queue_doc.to_dict()
+        users_in_queue = queue_data.get('users', [])
+        
+        user_entry_to_remove = next((user for user in users_in_queue if user['uid'] == user_uid), None)
 
-@app.route('/queue/<name>')
-def queue(name):
-    return render_template('queue.html', queue_name=name)
+        if not user_entry_to_remove:
+            return {'error': 'User not found in queue'}, 404
+            
+        transaction.update(queue_ref, {
+            'users': firestore.ArrayRemove([user_entry_to_remove])
+        })
+        
+        return {'message': 'Successfully left the queue'}, 200
+
+    try:
+        result, status_code = leave_in_transaction(db.transaction(), queue_ref, user_uid)
+        return jsonify(result), status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # --- GSI Callback Endpoint ---
 @app.route('/callback')
@@ -218,15 +265,15 @@ def join_queue(queue_id):
         if any(user['uid'] == user_uid for user in users_in_queue):
             return {'error': 'User is already in the queue'}, 409
         
-        # Use firestore.Increment(1) to atomically increment the token
-        new_token = queue_data.get('last_token', 0) + 1
+        last_token = queue_data.get('last_token', 0)
+        new_token = last_token + 1
         
         transaction.update(queue_ref, {
             'last_token': firestore.Increment(1),
             'users': firestore.ArrayUnion([{
                 'uid': user_uid,
                 'token': new_token,
-                'joined_at': firestore.SERVER_TIMESTAMP
+                'joined_at': datetime.now()  # Corrected to use datetime.now()
             }])
         })
         
@@ -237,7 +284,6 @@ def join_queue(queue_id):
         return jsonify(result), status_code
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/api/queues/serve_next/<queue_id>', methods=['POST'])
 def serve_next(queue_id):
