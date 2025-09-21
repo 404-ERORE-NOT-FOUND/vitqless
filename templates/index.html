@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIT Q-Less Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <main class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="greeting">
+                <p>⋆ GOOD MORNING</p>
+                <h1>AKSHAY KUMARESH</h1>
+            </div>
+            <nav class="nav-icons">
+                <a href="{{ url_for('dashboard') }}"><span class="material-icons">home</span></a>
+                <a href="{{ url_for('appointments') }}"><span class="material-icons">add_circle</span></a>
+                <span class="material-icons">notifications</span>
+                <a href="{{ url_for('profile') }}"><span class="material-icons">person</span></a>
+            </nav>
+        </header>
+
+        <section class="top-cards-section">
+            <div class="card featured-card">
+                <h3>FEATURED</h3>
+                <p id="featured-message">Loading...</p>
+                <a href="{{ url_for('appointments') }}"><button>Book an appointment</button></a>
+            </div>
+            <div class="card active-tokens-card">
+                <h3>ACTIVE TOKENS</h3>
+                <div class="token-info">
+                    <span class="material-icons">room_service</span>
+                    <span id="active-token-service">Loading...</span>
+                </div>
+                <div class="token-number" id="active-token-number">#00</div>
+            </div>
+        </section>
+
+        <section class="live-queues-section">
+            <div class="section-header">
+                <h2>Live Queues</h2>
+                <a href="#">See all queues</a>
+            </div>
+            <div class="queue-list-container">
+                </div>
+        </section>
+    </main>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

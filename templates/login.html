@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIT Q-Less Login</title>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
+
+    <script>
+        // Your Firebase configuration
+        var firebaseConfig = {
+            apiKey: "AIzaSyCKVDjVd6g9w55G09hlItIAq0ieb_DMrTI",
+            authDomain: "vitqless.firebaseapp.com",
+            projectId: "vitqless",
+            storageBucket: "vitqless.firebasestorage.app",
+            messagingSenderId: "77891893890",
+            appId: "1:77891893890:web:2e80b963e94ecc92ad929b",
+            measurementId: "G-BBPH0QPSDX"
+        };
+        firebase.initializeApp(firebaseConfig);
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <h1>VIT Q-Less Login</h1>
+        <p>Please sign in with your official VIT email account.</p>
+        <button id="google-login-btn">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon">
+            Sign in with Google
+        </button>
+        <div id="auth-status" style="margin-top: 15px; color: red;"></div>
+    </div>
+    
+    <script>
+        document.getElementById('google-login-btn').addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            firebase.auth().signInWithPopup(provider)
+                .then((result) => {
+                    const idToken = result.credential.idToken;
+                    // Send the ID token to your Flask backend for verification
+                    fetch('/api/auth/google', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idToken: idToken })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('auth-status').innerText = data.error;
+                        } else {
+                            // On successful login, redirect to the dashboard
+                            window.location.href = '/'; 
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById('auth-status').innerText = 'Network error. Please try again.';
+                    });
+                })
+                .catch((error) => {
+                    document.getElementById('auth-status').innerText = 'Authentication failed. Please try again.';
+                });
+        });
+    </script>
+</body>
+</html>
