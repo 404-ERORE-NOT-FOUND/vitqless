@@ -32,10 +32,10 @@
                 {% if user_in_queue %}
                     <h3>YOUR TOKEN</h3>
                     <div class="token-number">#<span id="your-token">{{ user_token }}</span></div>
-                    <button id="leave-queue-btn" data-queue-id="{{ queue_id }}">Leave Queue</button>
+                    <button id="leave-queue-btn" data-queue-id="{{ queue_id }}" class="action-btn">Leave Queue</button>
                 {% else %}
                     <h3 style="visibility: hidden;">Your Token</h3>
-                    <button id="join-queue-btn" data-queue-id="{{ queue_id }}">Join Queue</button>
+                    <button id="join-queue-btn" data-queue-id="{{ queue_id }}" class="action-btn">Join Queue</button>
                 {% endif %}
             </div>
         </section>
