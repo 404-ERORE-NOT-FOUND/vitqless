@@ -116,7 +116,22 @@ def admin_queue_detail(queue_id):
     
     queue_data = queue_doc.to_dict()
     
+    if 'users' in queue_data:
+        user_uids = [user['uid'] for user in queue_data['users']]
+        
+        if user_uids:
+            users_ref = db.collection('users')
+            users_docs = users_ref.where('uid', 'in', user_uids).stream()
+            
+            user_details = {user.id: user.to_dict() for user in users_docs}
+
+            for user_in_queue in queue_data['users']:
+                user_uid = user_in_queue['uid']
+                if user_uid in user_details:
+                    user_in_queue.update(user_details[user_uid])
+                
     return render_template('admin_queue_detail.html', queue=queue_data, queue_id=queue_id)
+
 
 @app.route('/queue/<queue_id>')
 def queue(queue_id):
@@ -261,6 +276,16 @@ def get_all_queues():
     queues = [{'id': doc.id, **doc.to_dict()} for doc in queues_ref.stream()]
     return jsonify(queues)
 
+@app.route('/api/users/<user_uid>')
+def get_user_details(user_uid):
+    user_doc_ref = db.collection('users').document(user_uid)
+    user_doc = user_doc_ref.get()
+    
+    if not user_doc.exists:
+        return jsonify({"error": "User not found"}), 404
+        
+    return jsonify(user_doc.to_dict()), 200
+
 @app.route('/api/queues/join/<queue_id>')
 def join_queue(queue_id):
     if 'user_uid' not in session:
@@ -277,18 +302,20 @@ def join_queue(queue_id):
         queue_data = queue_doc.to_dict()
         users_in_queue = queue_data.get('users', [])
         
+        # Check if the user is already in the queue
         if any(user['uid'] == user_uid for user in users_in_queue):
             return {'error': 'User is already in the queue'}, 409
         
         last_token = queue_data.get('last_token', 0)
         new_token = last_token + 1
         
+        # The crucial fix: We must pass the new token to the transaction to be added
         transaction.update(queue_ref, {
             'last_token': firestore.Increment(1),
             'users': firestore.ArrayUnion([{
                 'uid': user_uid,
                 'token': new_token,
-                'joined_at': datetime.now()  # Corrected to use datetime.now()
+                'joined_at': datetime.now()
             }])
         })
         

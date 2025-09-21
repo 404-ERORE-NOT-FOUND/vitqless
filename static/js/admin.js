@@ -1,8 +1,34 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- Logic for the Admin Page ---
+
     const adminContainer = document.querySelector('.admin-container');
     if (adminContainer) {
+        // --- Admin Queue Detail Page Logic ---
+        const userList = document.getElementById('user-list');
+        if (userList) {
+            fetchUserDetails();
+        }
+
+        async function fetchUserDetails() {
+            const userItems = userList.querySelectorAll('li[data-uid]');
+            for (const item of userItems) {
+                const uid = item.dataset.uid;
+                try {
+                    const response = await fetch(`/api/users/${uid}`);
+                    const user = await response.json();
+                    
+                    if (response.ok) {
+                        const token = item.querySelector('strong').innerText;
+                        item.innerText = `${token}: ${user.reg_no} - ${user.name}`;
+                    } else {
+                        item.innerText = `${token}: User not found`;
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch user details:", error);
+                    item.innerText = "Error loading user details";
+                }
+            }
+        }
+
         // Event listeners for admin serve buttons
         document.querySelectorAll('.serve-next-btn').forEach(button => {
             button.addEventListener('click', async (e) => {
@@ -73,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         if (response.ok) {
                             alert(data.message);
-                            // Refresh the page to show the new state
                             window.location.reload();
                         } else {
                             alert('Failed to reset queue: ' + data.error);

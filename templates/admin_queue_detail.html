@@ -29,10 +29,10 @@
 
         <hr>
         <h3>Users in Queue:</h3>
-        <ul class="user-list">
+        <ul id="user-list">
             {% if queue.users %}
                 {% for user in queue.users %}
-                <li><strong>Token #{{ user.token }}:</strong> User ID {{ user.uid }}</li>
+                <li data-uid="{{ user.uid }}"><strong>Token #{{ user.token }}:</strong> Loading...</li>
                 {% endfor %}
             {% else %}
                 <li>No users in this queue.</li>
