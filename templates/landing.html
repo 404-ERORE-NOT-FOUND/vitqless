@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> VIT Qless</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">Qless</div>
+            <a href="{{ url_for('login') }}" class="sign-in-button">Sign In</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero-section">
+            <div class="hero-content">
+                <h1>Tired of waiting in lines?</h1>
+                <p>Say goodbye to endless queues and hello to a smarter, faster way of doing business.</p>
+                <a href="{{ url_for('login') }}" class="cta-button">Sign In</a>
+            </div>
+            <div class="hero-image">
+                <img src="https://via.placeholder.com/600x400.png?text=Virtual+Queue+Management" alt="Virtual Queue Management System">
+            </div>
+        </section>
+
+        <section class="features-section">
+            <div class="feature">
+                <h3>Virtual Queuing</h3>
+                <p>Customers can join a queue from anywhere, using their smartphone. No need to physically stand in line!</p>
+            </div>
+            <div class="feature">
+                <h3>Real-time Updates</h3>
+                <p>Keep your customers informed with live updates on their wait time and position in the queue.</p>
+            </div>
+            <div class="feature">
+                <h3>Analytics & Insights</h3>
+                <p>Gain valuable data on customer traffic, peak hours, and service efficiency to optimize your operations.</p>
+            </div>
+            <div class="feature">
+                <h3>Easy Integration</h3>
+                <p>Seamlessly integrate Qless with your existing systems for a smooth and effortless transition.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Qless. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="#">About Us</a>
+            <a href="#">Contact</a>
+            <a href="#">Privacy Policy</a>
+        </div>
+    </footer>
+</body>
+</html>

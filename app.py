@@ -70,14 +70,38 @@ def profile():
     
     return render_template('profile.html', user_name=user_name, user_email=user_email, reg_no=reg_no)
 
-
 @app.route('/appointments')
 def appointments():
     return render_template('appointments.html')
 
 @app.route('/admin')
-def admin_login():
-    return render_template('admin.html')
+def admin_page():
+    if not session.get('is_admin'):
+        return "Access Denied", 403
+    
+    queues_ref = db.collection('queues')
+    queues = [doc.to_dict() for doc in queues_ref.stream()]
+    
+    return render_template('admin.html', queues=queues)
+
+@app.route('/admin/queues/create', methods=['GET', 'POST'])
+def admin_create_queue():
+    if not session.get('is_admin'):
+        return "Access Denied", 403
+
+    if request.method == 'POST':
+        queue_name = request.form.get('queue_name')
+        if queue_name:
+            new_queue_doc = db.collection('queues').document()
+            new_queue_doc.set({
+                'name': queue_name,
+                'current_token': 0,
+                'last_token': 0,
+                'created_at': firestore.SERVER_TIMESTAMP
+            })
+            return redirect(url_for('admin_page'))
+    
+    return render_template('admin_create_queue.html')
 
 @app.route('/queue/<name>')
 def queue(name):
@@ -93,11 +117,13 @@ def callback():
     try:
         id_info = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
         
-        if not id_info.get('email', '').endswith('@vitstudent.ac.in'):
+        email = id_info.get('email', '')
+        
+        is_admin = (email == 'axongfx.help@gmail.com')
+        if not is_admin and not email.endswith('@vitstudent.ac.in'):
             return "Access denied. Use your official VIT email.", 403
-
+        
         google_name = id_info.get('name')
-        email = id_info.get('email')
         uid = id_info['sub']
 
         extracted_reg_no = None
@@ -113,6 +139,7 @@ def callback():
         session['user_email'] = email
         session['user_name'] = display_name
         session['reg_no'] = extracted_reg_no
+        session['is_admin'] = is_admin
 
         user_ref = db.collection('users').document(uid)
         user_doc = user_ref.get()
@@ -122,6 +149,7 @@ def callback():
                 'name': display_name,
                 'email': email,
                 'reg_no': extracted_reg_no,
+                'is_admin': is_admin,
                 'created_at': firestore.SERVER_TIMESTAMP
             })
         else:
@@ -132,24 +160,27 @@ def callback():
                 update_data['email'] = email
             if user_doc.to_dict().get('reg_no') != extracted_reg_no:
                 update_data['reg_no'] = extracted_reg_no
+            if user_doc.to_dict().get('is_admin') != is_admin:
+                update_data['is_admin'] = is_admin
             
             if update_data:
                 user_ref.update(update_data)
         
-        return redirect(url_for('dashboard'))
+        if is_admin:
+            return redirect(url_for('admin_page'))
+        else:
+            return redirect(url_for('dashboard'))
 
     except ValueError:
         return "Invalid or expired authentication token.", 401
     except Exception as e:
         return f"An unexpected error occurred: {e}", 500
 
-# --- Original Project's API Endpoints ---
+# --- API Endpoints ---
 @app.route('/api/queues')
 def get_all_queues():
-    queues = [
-        {"name": "Q Block Paid Mess", "count": 158, "id": "q-block-mess"},
-        {"name": "Admin Office", "count": 25, "id": "admin-office"},
-    ]
+    queues_ref = db.collection('queues').order_by('created_at', direction=firestore.Query.DESCENDING)
+    queues = [doc.to_dict() for doc in queues_ref.stream()]
     return jsonify(queues)
 
 @app.route('/api/live_data')
@@ -160,6 +191,68 @@ def get_live_data():
         "featured_message": "Reminder to book an appointment."
     }
     return jsonify(live_data)
+
+@app.route('/api/queues/join/<queue_id>')
+def join_queue(queue_id):
+    if 'user_uid' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    queue_ref = db.collection('queues').document(queue_id)
+    
+    queue_doc = queue_ref.get()
+    if not queue_doc.exists:
+        return jsonify({"error": "Queue not found"}), 404
+
+    queue_data = queue_doc.to_dict()
+    last_token = queue_data.get('last_token', 0)
+    new_token = last_token + 1
+
+    queue_ref.update({
+        'last_token': new_token,
+        'users': firestore.ArrayUnion([{
+            'uid': session.get('user_uid'),
+            'token': new_token,
+            'joined_at': firestore.SERVER_TIMESTAMP
+        }])
+    })
+    
+    return jsonify({"token": new_token, "queue_name": queue_data.get('name')})
+
+@app.route('/api/queues/serve_next/<queue_id>', methods=['POST'])
+def serve_next(queue_id):
+    if not session.get('is_admin'):
+        return jsonify({"error": "Permission Denied"}), 403
+
+    queue_ref = db.collection('queues').document(queue_id)
+    queue_doc = queue_ref.get()
+    
+    if not queue_doc.exists:
+        return jsonify({"error": "Queue not found"}), 404
+
+    current_token = queue_doc.to_dict().get('current_token', 0)
+    queue_ref.update({'current_token': current_token + 1})
+    
+    return jsonify({"message": "Next person served"})
+
+@app.route('/api/queues/set_tokens/<queue_id>', methods=['POST'])
+def set_tokens(queue_id):
+    if not session.get('is_admin'):
+        return jsonify({"error": "Permission Denied"}), 403
+
+    data = request.get_json()
+    new_current = data.get('current_token')
+    new_last = data.get('last_token')
+
+    if new_current is None or new_last is None:
+        return jsonify({"error": "Missing token values"}), 400
+
+    queue_ref = db.collection('queues').document(queue_id)
+    queue_ref.update({
+        'current_token': int(new_current),
+        'last_token': int(new_last)
+    })
+    
+    return jsonify({"message": "Tokens updated successfully"}), 200
 
 # --- To run the application ---
 if __name__ == '__main__':
