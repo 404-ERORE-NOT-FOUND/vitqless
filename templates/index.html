@@ -8,11 +8,13 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
+
     <main class="dashboard-container">
+        
         <header class="dashboard-header">
             <div class="greeting">
                 <p>⋆ GOOD MORNING</p>
-                <h1>AKSHAY KUMARESH</h1>
+                <h1>{{ user_name }}</h1>
             </div>
             <nav class="nav-icons">
                 <a href="{{ url_for('dashboard') }}"><span class="material-icons">home</span></a>
@@ -46,7 +48,9 @@
             <div class="queue-list-container">
                 </div>
         </section>
+        
     </main>
+
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
