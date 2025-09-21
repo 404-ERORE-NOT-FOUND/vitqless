@@ -13,19 +13,13 @@
         <hr>
         <h2>Manage Queues</h2>
         {% for queue in queues %}
-        <div class="queue-card" data-queue-id="{{ queue.id }}">
+        <div class="queue-card">
             <h3>{{ queue.name }}</h3>
             <p>Current Token: #<span id="current-{{ queue.id }}">{{ queue.current_token }}</span></p>
             <p>Last Token: #<span id="last-{{ queue.id }}">{{ queue.last_token }}</span></p>
-            <button class="serve-next-btn" data-queue-id="{{ queue.id }}">Serve Next</button>
-            <form class="set-tokens-form">
-                <input type="number" class="current-token-input" placeholder="Current" value="{{ queue.current_token }}" required>
-                <input type="number" class="last-token-input" placeholder="Last" value="{{ queue.last_token }}" required>
-                <button type="submit" class="set-tokens-btn">Set Tokens</button>
-            </form>
+            <a href="{{ url_for('admin_queue_detail', queue_id=queue.id) }}" class="manage-btn">Manage Queue</a>
         </div>
         {% endfor %}
     </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

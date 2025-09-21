@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Queue: {{ queue.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="admin-container">
+        <a href="{{ url_for('admin_page') }}" class="back-btn">← Back to Admin Dashboard</a>
+        <h1>Manage Queue: {{ queue.name }}</h1>
+        <hr>
+
+        <div class="queue-details">
+            <div class="token-controls">
+                <p>Current Token: #<span id="current-{{ queue_id }}">{{ queue.current_token }}</span></p>
+                <p>Last Token: #<span id="last-{{ queue_id }}">{{ queue.last_token }}</span></p>
+                <button class="serve-next-btn" data-queue-id="{{ queue_id }}">Serve Next</button>
+            </div>
+            
+            <form class="set-tokens-form">
+                <input type="number" class="current-token-input" placeholder="Set Current" value="{{ queue.current_token }}" required>
+                <input type="number" class="last-token-input" placeholder="Set Last" value="{{ queue.last_token }}" required>
+                <button type="submit" class="set-tokens-btn">Set Tokens</button>
+            </form>
+        </div>
+
+        <hr>
+        <h3>Users in Queue:</h3>
+        <ul class="user-list">
+            {% if queue.users %}
+                {% for user in queue.users %}
+                <li><strong>Token #{{ user.token }}:</strong> User ID {{ user.uid }}</li>
+                {% endfor %}
+            {% else %}
+                <li>No users in this queue.</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
