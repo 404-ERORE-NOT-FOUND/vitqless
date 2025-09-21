@@ -1,0 +1,6 @@
+- The user is prompted to a login page where he/she can login with Google using VITs official email id 
+- Once registered, the user lands on a landing page containing a list of available queues
+- The user can then select any available queue to get into and is then taken to the queue page where user is able to see queue status, token status, notification status and estimated time.
+- The appointment module on the home page allows the user to book available slots for particular staff
+- The admin login can be used by admins (staff and mess managers) to manage token/appointment system
+- Profile customization can also be done on profile page
