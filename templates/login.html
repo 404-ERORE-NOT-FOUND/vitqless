@@ -4,65 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VIT Q-Less Login</title>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-auth.js"></script>
-
-    <script>
-        // Your Firebase configuration
-        var firebaseConfig = {
-            apiKey: "AIzaSyCKVDjVd6g9w55G09hlItIAq0ieb_DMrTI",
-            authDomain: "vitqless.firebaseapp.com",
-            projectId: "vitqless",
-            storageBucket: "vitqless.firebasestorage.app",
-            messagingSenderId: "77891893890",
-            appId: "1:77891893890:web:2e80b963e94ecc92ad929b",
-            measurementId: "G-BBPH0QPSDX"
-        };
-        firebase.initializeApp(firebaseConfig);
-    </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="login-container">
-        <h1>VIT Q-Less Login</h1>
-        <p>Please sign in with your official VIT email account.</p>
-        <button id="google-login-btn">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon">
-            Sign in with Google
-        </button>
-        <div id="auth-status" style="margin-top: 15px; color: red;"></div>
+        <h1 class="login-title">Join VIT Q-Less</h1>
+        <p class="login-subtitle">Please sign in with your <strong>@vitstudent.ac.in</strong> account.</p>
+
+        <div id="g_id_onload"
+             data-client_id="{{ GOOGLE_CLIENT_ID }}"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
+        </div>
+        
+        <div class="g_id_signin"
+             data-type="standard"
+             data-size="large"
+             data-theme="outline"
+             data-text="sign_in_with"
+             data-shape="rectangular"
+             data-logo_alignment="left">
+        </div>
+
+        <div id="status-message" style="margin-top: 1rem; text-align: center;"></div>
     </div>
-    
+
     <script>
-        document.getElementById('google-login-btn').addEventListener('click', () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            firebase.auth().signInWithPopup(provider)
-                .then((result) => {
-                    const idToken = result.credential.idToken;
-                    // Send the ID token to your Flask backend for verification
-                    fetch('/api/auth/google', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idToken: idToken })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            document.getElementById('auth-status').innerText = data.error;
-                        } else {
-                            // On successful login, redirect to the dashboard
-                            window.location.href = '/'; 
-                        }
-                    })
-                    .catch(error => {
-                        document.getElementById('auth-status').innerText = 'Network error. Please try again.';
-                    });
+        const statusMessageDiv = document.getElementById('status-message');
+
+        function handleCredentialResponse(response) {
+            statusMessageDiv.textContent = 'Authenticating...';
+            const token = response.credential;
+            
+            fetch(`/callback?token=${token}`)
+                .then(res => {
+                    if (res.ok) {
+                        window.location.href = "{{ url_for('dashboard') }}";
+                    } else {
+                        return res.text().then(text => {
+                            statusMessageDiv.textContent = `Error: ${text}`;
+                            console.error('Backend Error:', text);
+                        });
+                    }
                 })
-                .catch((error) => {
-                    document.getElementById('auth-status').innerText = 'Authentication failed. Please try again.';
+                .catch(error => {
+                    statusMessageDiv.textContent = `Network error: ${error.message}`;
+                    console.error('Fetch Error:', error);
                 });
-        });
+        }
     </script>
 </body>
 </html>

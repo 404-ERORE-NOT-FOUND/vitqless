@@ -1,128 +1,145 @@
 import os
-import firebase_admin
-from firebase_admin import credentials, firestore, auth
+import pathlib
+import requests
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from google.oauth2 import id_token
+from google_auth_oauthlib.flow import Flow
+from google.auth.transport import requests as google_requests
 
 # Load environment variables from .env file
 load_dotenv()
 
-# --- Firebase Admin SDK Setup ---
-# Get the path to your Firebase service account key from the .env file
-SERVICE_ACCOUNT_KEY_PATH = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
+# --- Google OAuth Setup ---
+# Manually create a client_secrets.json equivalent from .env for the flow object
+client_config = {
+    "web": {
+        "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
+        "redirect_uris": ["http://127.0.0.1:5000/callback"]
+    }
+}
 
-if not SERVICE_ACCOUNT_KEY_PATH or not os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
-    print("Error: Firebase service account key file not found. Please check your .env file.")
-    exit()
-
-try:
-    cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-except Exception as e:
-    print(f"Error initializing Firebase Admin SDK: {e}")
-    exit()
+# The Google-auth flow to handle the OAuth 2.0 process
+flow = Flow.from_client_config(
+    client_config,
+    scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
+    redirect_uri="http://127.0.0.1:5000/callback"
+)
 
 # --- Flask Application Setup ---
 app = Flask(__name__)
+# A strong secret key is required for Flask sessions
+app.secret_key = "your_strong_secret_key" 
 
 # --- Core Web Pages ---
 @app.route('/')
 def dashboard():
-    """Renders the main dashboard page."""
+    # Protect the dashboard by checking for a user in the session
+    if 'user_email' not in session:
+        return redirect(url_for('login'))
     return render_template('index.html')
 
 @app.route('/login')
 def login():
-    """Renders the login page."""
-    # Pass environment variables to the template for client-side Firebase config
-    return render_template(
-        'login.html',
-        firebase_api_key=os.getenv("FIREBASE_API_KEY"),
-        firebase_auth_domain=os.getenv("FIREBASE_AUTH_DOMAIN"),
-        firebase_project_id=os.getenv("FIREBASE_PROJECT_ID"),
-        firebase_storage_bucket=os.getenv("FIREBASE_STORAGE_BUCKET"),
-        firebase_messaging_sender_id=os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
-        firebase_app_id=os.getenv("FIREBASE_APP_ID")
-    )
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/profile')
 def profile():
-    """Renders the user profile page."""
-    return render_template('profile.html')
+    # Retrieve user data from the session and pass it to the template
+    if 'user_email' not in session:
+        return redirect(url_for('login'))
+    
+    user_name = session.get('user_name', 'User')
+    user_email = session.get('user_email', 'No Email')
+    
+    return render_template('profile.html', user_name=user_name, user_email=user_email)
 
 @app.route('/appointments')
 def appointments():
-    """Renders the appointments booking page."""
     return render_template('appointments.html')
 
 @app.route('/admin')
 def admin_login():
-    """Renders the admin login page."""
     return render_template('admin.html')
 
 @app.route('/queue/<name>')
 def queue(name):
-    """Renders a specific queue page."""
     return render_template('queue.html', queue_name=name)
 
-# --- API Endpoints ---
-@app.route('/api/auth/google', methods=['POST'])
-def google_auth():
-    """
-    Handles Google Sign-in token verification and authenticates users.
-    Restricts access to @vitstudent.ac.in accounts only.
-    """
-    id_token = request.json.get('idToken')
-    
-    if not id_token:
-        return jsonify({"error": "ID token not provided."}), 400
+# --- OAuth Routes ---
+@app.route("/authorize")
+def authorize():
+    # Redirects the user to Google's consent screen
+    authorization_url, state = flow.authorization_url()
+    session["state"] = state
+    return redirect(authorization_url)
+
+@app.route("/callback")
+def callback():
+    # Handles the response from Google and exchanges the auth code for a token
+    try:
+        flow.fetch_token(authorization_response=request.url)
+    except Exception as e:
+        return f"Error fetching token: {e}", 400
+
+    if not "state" in session or session["state"] != request.args.get("state"):
+        return "State mismatch!", 400
+
+    credentials = flow.credentials
+    request_session = google_requests.Request()
     
     try:
-        decoded_token = auth.verify_id_token(id_token)
-        email = decoded_token.get('email')
+        # Verify the ID token and get user info
+        user_info = id_token.verify_oauth2_token(
+            credentials.id_token, request_session, flow.client_config['web']['client_id']
+        )
         
-        # --- Authentication Rule: Only allow @vitstudent.ac.in emails ---
-        if not email or not email.endswith('@vitstudent.ac.in'):
-            return jsonify({
-                "error": "Access Denied. Please use your official @vitstudent.ac.in email account."
-            }), 403
-            
-        uid = decoded_token['uid']
+        email = user_info["email"]
         
-        # Store or update user details in Firestore
-        user_ref = db.collection('users').document(uid)
-        user_ref.set({
-            'email': email,
-            'name': decoded_token.get('name', 'N/A')
-        }, merge=True)
-        
-        return jsonify({"message": "User authenticated successfully", "uid": uid}), 200
-        
-    except auth.InvalidIdTokenError:
-        return jsonify({"error": "Invalid or expired authentication token."}), 401
-    except Exception as e:
-        return jsonify({"error": f"Authentication failed: {str(e)}"}), 500
+        # Check for the required email domain
+        if not email.endswith('@vitstudent.ac.in'):
+            return "Access denied. Use your official VIT email.", 403
 
+        # Store user info in session
+        session["user_uid"] = user_info.get("sub")
+        session["user_name"] = user_info.get("name")
+        session["user_email"] = user_info.get("email")
+        
+        # TODO: Here is where you would save the user info to your database
+
+    except ValueError:
+        return "Could not verify user token.", 400
+
+    return redirect(url_for('dashboard'))
+
+# --- API Endpoints (from your original project) ---
 @app.route('/api/queues')
 def get_all_queues():
-    """Returns a JSON list of all live queues from Firestore."""
-    queues_ref = db.collection('queues')
-    queues = [doc.to_dict() for doc in queues_ref.stream()]
+    queues = [
+        {"name": "Q Block Paid Mess", "count": 158, "id": "q-block-mess"},
+        {"name": "Admin Office", "count": 25, "id": "admin-office"},
+    ]
     return jsonify(queues)
 
 @app.route('/api/live_data')
 def get_live_data():
-    """Returns live data for active tokens and featured content from Firestore."""
-    doc_ref = db.collection('live_data').document('dashboard_info')
-    doc = doc_ref.get()
-    
-    if doc.exists:
-        live_data = doc.to_dict()
-        return jsonify(live_data)
-    else:
-        return jsonify({"message": "Live data not found"}), 404
+    live_data = {
+        "active_token_number": 57,
+        "active_token_service": "Q Block Paid Mess",
+        "featured_message": "Reminder to book an appointment."
+    }
+    return jsonify(live_data)
 
 # --- To run the application ---
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+if __name__ == "__main__":
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    app.run(debug=True, host="0.0.0.0")
