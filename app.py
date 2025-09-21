@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from google.oauth2 import id_token
@@ -35,11 +36,19 @@ def dashboard():
     if 'user_email' not in session:
         return redirect(url_for('login'))
     
-    # Retrieve user's name from the session
+    current_hour = datetime.now().hour
+    if 5 <= current_hour < 12:
+        greeting_message = "Good morning"
+    elif 12 <= current_hour < 17:
+        greeting_message = "Good afternoon"
+    elif 17 <= current_hour < 22:
+        greeting_message = "Good evening"
+    else:
+        greeting_message = "Good night"
+    
     user_name = session.get('user_name', 'User')
     
-    # Pass the user's name to the dashboard template
-    return render_template('index.html', user_name=user_name)
+    return render_template('index.html', user_name=user_name, greeting=greeting_message)
 
 @app.route('/login')
 def login():
@@ -134,7 +143,7 @@ def callback():
     except Exception as e:
         return f"An unexpected error occurred: {e}", 500
 
-# --- API Endpoints ---
+# --- Original Project's API Endpoints ---
 @app.route('/api/queues')
 def get_all_queues():
     queues = [

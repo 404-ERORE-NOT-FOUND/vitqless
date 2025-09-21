@@ -5,16 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <div class="profile-container">
-        <h1 class="profile-title">User Profile</h1>
-        <p><strong>Name:</strong> {{ user_name }}</p>
-        <p><strong>Email:</strong> {{ user_email }}</p>
-        <p><strong>Registration No:</strong> {{ reg_no }}</p>
-        <div class="profile-actions">
-            <a href="{{ url_for('logout') }}"><button>Logout</button></a>
+    <main class="dashboard-container">
+        <header class="dashboard-header">
+            <div class="greeting">
+                <p>⋆ USER PROFILE</p>
+                <h1>{{ user_name }}</h1>
+            </div>
+            <nav class="nav-icons">
+                <a href="{{ url_for('dashboard') }}"><span class="material-icons">home</span></a>
+                <a href="{{ url_for('appointments') }}"><span class="material-icons">add_circle</span></a>
+                <span class="material-icons">notifications</span>
+                <a href="{{ url_for('profile') }}"><span class="material-icons">person</span></a>
+            </nav>
+        </header>
+
+        <div class="profile-details-container">
+            <p><strong>Name:</strong> {{ user_name }}</p>
+            <p><strong>Email:</strong> {{ user_email }}</p>
+            <p><strong>Registration No:</strong> {{ reg_no }}</p>
+            <div class="profile-actions">
+                <a href="{{ url_for('dashboard') }}"><button class="back-btn">Back to Home</button></a>
+                <a href="{{ url_for('logout') }}"><button class="logout-btn">Logout</button></a>
+            </div>
         </div>
-    </div>
+    </main>
 </body>
 </html>
